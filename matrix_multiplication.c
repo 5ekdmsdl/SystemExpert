@@ -156,7 +156,7 @@ void MatrixMultiplication64(int** A,
 {
   int i_stepSize = 16;
   int j_stepSize = 64;
-  int k_stepSize = 16;  
+  int k_stepSize = 8;  
 
   for(uint32_t _i = 0; _i < size; _i += i_stepSize)
   {
@@ -177,14 +177,6 @@ void MatrixMultiplication64(int** A,
             C[i][k + 5] += A[i][j] * B[j][k + 5];
             C[i][k + 6] += A[i][j] * B[j][k + 6];
             C[i][k + 7] += A[i][j] * B[j][k + 7];
-            C[i][k + 8] += A[i][j] * B[j][k + 8];
-            C[i][k + 9] += A[i][j] * B[j][k + 9];
-            C[i][k + 10] += A[i][j] * B[j][k + 10];
-            C[i][k + 11] += A[i][j] * B[j][k + 11];
-            C[i][k + 12] += A[i][j] * B[j][k + 12];
-            C[i][k + 13] += A[i][j] * B[j][k + 13];
-            C[i][k + 14] += A[i][j] * B[j][k + 14];
-            C[i][k + 15] += A[i][j] * B[j][k + 15];
           }
         }
       }

@@ -331,7 +331,7 @@
                         "cmd": [
                             "./matrix_multiplication", 
                             "64", 
-                            "opt"
+                            "all"
                         ], 
                         "errout": "cerr", 
                         "useArchPT": false, 
