@@ -27,9 +27,9 @@ void MatrixMultiplicationAll(int** A,
   uint32_t j = 0;
   uint32_t k = 0;
   
-  // int i_stepSize = size;
-  // int j_stepSize = 6; // size / 2;
-  // int k_stepSize = 8; // (16 < (size / 2))? 16: size / 2;
+  int i_stepSize = size;
+  int j_stepSize = 4; // size / 2;
+  int k_stepSize = 8; // (16 < (size / 2))? 16: size / 2;
   // if(size == 8) {
   //   i_stepSize = 8;      // 8
   //   j_stepSize = 4;
@@ -45,21 +45,20 @@ void MatrixMultiplicationAll(int** A,
   //   j_stepSize = 8;
   //   k_stepSize = 16;
   // }
-
-  for(i = 0; i < size; i++)   {
-   for (j = 0; j < size; j++) {
-      for(k = 0; k < size; k += 8){
-        C[i][k + 0] += A[i][j] * B[j][k + 0];
-        C[i][k + 1] += A[i][j] * B[j][k + 1];
-        C[i][k + 2] += A[i][j] * B[j][k + 2];
-        C[i][k + 3] += A[i][j] * B[j][k + 3];
-        C[i][k + 4] += A[i][j] * B[j][k + 4];
-        C[i][k + 5] += A[i][j] * B[j][k + 5];
-        C[i][k + 6] += A[i][j] * B[j][k + 6];
-        C[i][k + 7] += A[i][j] * B[j][k + 7];
-      }
+  
+  for(int _j = 0; _j < size; _j += j_stepSize){
+    for(i = 0; i < size; i++)   {
+      for (j = _j; j < _j + j_stepSize; j += 2) {
+          for(k = 0; k < size; k += 4){
+            C[i][k + 0] += A[i][j + 1] * B[j + 1][k + 0] + A[i][j] * B[j][k + 0];
+            C[i][k + 1] += A[i][j + 1] * B[j + 1][k + 1] + A[i][j] * B[j][k + 1];
+            C[i][k + 2] += A[i][j + 1] * B[j + 1][k + 2] + A[i][j] * B[j][k + 2];
+            C[i][k + 3] += A[i][j + 1] * B[j + 1][k + 3] + A[i][j] * B[j][k + 3];
+          }
+        }
     }
   }
+  
 
 }
 
