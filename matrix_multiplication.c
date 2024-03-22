@@ -27,8 +27,7 @@ void MatrixMultiplicationAll(int** A,
   uint32_t j = 0;
   uint32_t k = 0;
   
-  int j_stepSize = 4; // size / 2;
-  // int k_stepSize = 8; // (16 < (size / 2))? 16: size / 2;
+  int j_stepSize = 4; 
   
   for(int _j = 0; _j < size; _j += j_stepSize){
     for(i = 0; i < size; i++)   {
@@ -84,59 +83,22 @@ void MatrixMultiplication16(int** A,
   uint32_t j = 0;
   uint32_t k = 0;
   
-  int j_stepSize = 4; // size / 2;
-  // int k_stepSize = 8; // (16 < (size / 2))? 16: size / 2;
+  int j_stepSize = 8;
   
   for(int _j = 0; _j < size; _j += j_stepSize){
-    for(i = 0; i < size; i++)   {
+    for(i = 0; i < size; i += 2)   {
       for (j = _j; j < _j + j_stepSize; j += 2) {
-          for(k = 0; k < size; k += 8){
+          for(k = 0; k < size; k += 2){
             C[i][k + 0] += A[i][j + 1] * B[j + 1][k + 0] + A[i][j] * B[j][k + 0];
             C[i][k + 1] += A[i][j + 1] * B[j + 1][k + 1] + A[i][j] * B[j][k + 1];
-            C[i][k + 2] += A[i][j + 1] * B[j + 1][k + 2] + A[i][j] * B[j][k + 2];
-            C[i][k + 3] += A[i][j + 1] * B[j + 1][k + 3] + A[i][j] * B[j][k + 3];
-            // k += 4;
-            C[i][k + 4] += A[i][j + 1] * B[j + 1][k + 4] + A[i][j] * B[j][k + 4];
-            C[i][k + 5] += A[i][j + 1] * B[j + 1][k + 5] + A[i][j] * B[j][k + 5];
-            C[i][k + 6] += A[i][j + 1] * B[j + 1][k + 6] + A[i][j] * B[j][k + 6];
-            C[i][k + 7] += A[i][j + 1] * B[j + 1][k + 7] + A[i][j] * B[j][k + 7];
+
+            C[i + 1][k + 0] += A[i + 1][j + 1] * B[j + 1][k + 0] + A[i + 1][j] * B[j][k + 0];
+            C[i + 1][k + 1] += A[i + 1][j + 1] * B[j + 1][k + 1] + A[i + 1][j] * B[j][k + 1];
           }
         }
     }
   }
   return;
-
-  // int i_stepSize = 8;
-  // // int j_stepSize = 4;
-  // for(uint32_t _i = 0; _i < size; _i += i_stepSize)
-  // {
-  //   for (uint32_t i = _i; i < _i + i_stepSize; i++) 
-  //   {
-  //     for(uint32_t _j = 0; _j < size; _j += j_stepSize)
-  //     {
-  //       for (uint32_t j = _j; j < _j + j_stepSize; j++) 
-  //       {
-  //         C[i][0] += A[i][j] * B[j][0];
-  //         C[i][1] += A[i][j] * B[j][1];
-  //         C[i][2] += A[i][j] * B[j][2];
-  //         C[i][3] += A[i][j] * B[j][3];
-  //         C[i][4] += A[i][j] * B[j][4];
-  //         C[i][5] += A[i][j] * B[j][5];
-  //         C[i][6] += A[i][j] * B[j][6];
-  //         C[i][7] += A[i][j] * B[j][7];
-  //         C[i][8] += A[i][j] * B[j][8];
-  //         C[i][9] += A[i][j] * B[j][9];
-  //         C[i][10] += A[i][j] * B[j][10];
-  //         C[i][11] += A[i][j] * B[j][11];
-  //         C[i][12] += A[i][j] * B[j][12];
-  //         C[i][13] += A[i][j] * B[j][13];
-  //         C[i][14] += A[i][j] * B[j][14];
-  //         C[i][15] += A[i][j] * B[j][15];
-  //       }
-  //     }
-  //   }
-  // }
-  
 }
 #endif
 
@@ -155,8 +117,7 @@ void MatrixMultiplication64(int** A,
   uint32_t j = 0;
   uint32_t k = 0;
   
-  int j_stepSize = 4; // size / 2;
-  // int k_stepSize = 8; // (16 < (size / 2))? 16: size / 2;
+  int j_stepSize = 4;
   
   for(int _j = 0; _j < size; _j += j_stepSize){
     for(i = 0; i < size; i++)   {
@@ -166,7 +127,6 @@ void MatrixMultiplication64(int** A,
             C[i][k + 1] += A[i][j + 1] * B[j + 1][k + 1] + A[i][j] * B[j][k + 1];
             C[i][k + 2] += A[i][j + 1] * B[j + 1][k + 2] + A[i][j] * B[j][k + 2];
             C[i][k + 3] += A[i][j + 1] * B[j + 1][k + 3] + A[i][j] * B[j][k + 3];
-            // k += 4;
             C[i][k + 4] += A[i][j + 1] * B[j + 1][k + 4] + A[i][j] * B[j][k + 4];
             C[i][k + 5] += A[i][j + 1] * B[j + 1][k + 5] + A[i][j] * B[j][k + 5];
             C[i][k + 6] += A[i][j + 1] * B[j + 1][k + 6] + A[i][j] * B[j][k + 6];
@@ -176,35 +136,6 @@ void MatrixMultiplication64(int** A,
     }
   }
   return;
-
-  // int i_stepSize = 16;
-  // int j_stepSize = 64;
-  // int k_stepSize = 8;  
-
-  // for(uint32_t _i = 0; _i < size; _i += i_stepSize)
-  // {
-  //   for (uint32_t i = _i; i < _i + i_stepSize; i++) 
-  //   {
-
-  //     for(uint32_t _j = 0; _j < size; _j += j_stepSize)
-  //     {
-  //       for (uint32_t j = _j; j < _j + j_stepSize; j++) 
-  //       {
-
-  //         for(uint32_t k = 0; k < size; k += k_stepSize){
-  //           C[i][k + 0] += A[i][j] * B[j][k + 0];
-  //           C[i][k + 1] += A[i][j] * B[j][k + 1];
-  //           C[i][k + 2] += A[i][j] * B[j][k + 2];
-  //           C[i][k + 3] += A[i][j] * B[j][k + 3];
-  //           C[i][k + 4] += A[i][j] * B[j][k + 4];
-  //           C[i][k + 5] += A[i][j] * B[j][k + 5];
-  //           C[i][k + 6] += A[i][j] * B[j][k + 6];
-  //           C[i][k + 7] += A[i][j] * B[j][k + 7];
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
 }
 #endif
 

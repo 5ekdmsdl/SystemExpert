@@ -330,7 +330,7 @@
                         "name": "workload", 
                         "cmd": [
                             "./matrix_multiplication", 
-                            "8", 
+                            "64", 
                             "all"
                         ], 
                         "errout": "cerr", 
