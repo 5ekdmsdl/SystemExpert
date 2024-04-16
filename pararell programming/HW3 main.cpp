@@ -1,25 +1,48 @@
 #include "iostream"
-#define SZ 256
+#include <pthread.h>
+#include <vector>
 
-void runThread(int pid, double *out, int N, int cnt) {
-  int iStart = N - 1;
-  int iEnd = cnt;
+#define SZ 1048
+using namespace std;
+
+struct argu{
+  int pid;
+  double* out;
+  int N;
+  int cnt;
+
+  argu(int pid, double* out, int N, int cnt):pid(pid), out(out), N(N), cnt(cnt){};
+};
+
+void* runThread(void* ptr) {
+  argu* arguments = (argu*)ptr;
+  int iStart = arguments->N - 1;
+  int iEnd = arguments->cnt;
 
   // std::cout << cnt << " : " << iEnd << " ~ " << iStart << std::endl;
-  for (int i = iStart - pid; i >= iEnd; i -= cnt) {
+  for (int i = iStart - arguments->pid; i >= iEnd; i -= arguments->cnt) {
     // std::cout << pid << " : " << i  << " += " << i-cnt << std::endl;
-    out[i] += out[i - cnt];
+    arguments->out[i] += arguments->out[i - arguments->cnt];
   }
+
+  return nullptr;
 }
 
 void func(double *out, double *in, int N) {
   for (int i = 0; i < N; i++) {
     out[i] = in[i];
   }
-
+  
+  vector<pthread_t*> threadP;
   for (int cnt = 1; cnt < N; cnt *= 2) {
     for (int pid = 0; pid < cnt; pid++) {
-      runThread(pid, out, N, cnt);
+      threadP.push_back(new pthread_t());
+      argu* argument = new argu(pid, out, N, cnt);
+      pthread_create(threadP[pid], nullptr, runThread, static_cast<void*>(argument));
+      // runThread(pid, out, N, cnt);
+    }
+    for(int pid = 0; pid < cnt; pid++){
+      pthread_join(*threadP[pid], nullptr);
     }
   }
 }
