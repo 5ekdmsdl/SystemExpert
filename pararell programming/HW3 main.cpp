@@ -25,7 +25,7 @@ void* runThread(void* ptr) {
   for (int i = iStart; i >= iEnd; i--) {
     arguments->out[i] += arguments->out[i - arguments->cnt];
   }
-  
+
   return nullptr;
 }
 
@@ -37,16 +37,15 @@ void func(double *out, double *in, int N) {
   vector<pthread_t*> threadP;
   for (int cnt = 1; cnt < N; cnt *= 2) {
     for (int pid = 0; pid < nthread; pid++) {
-      pthread_t* pth = new pthread_t; threadP.push_back(pth);
+      threadP.push_back(new pthread_t());
       argu* argument = new argu(pid, out, N, cnt);
-      pthread_create(pth, nullptr, runThread, static_cast<void*>(argument));
+      pthread_create(threadP[pid], nullptr, runThread, static_cast<void*>(argument));
     }
 
     for(int pid = 0; pid < nthread; pid++){
       pthread_join(*threadP[pid], nullptr);
-      
     }
-    // std::cout << cnt << " thread " << " joined" << std::endl;
+    std::cout << cnt << " thread " << " joined" << std::endl;
 
     threadP.clear();
   }
