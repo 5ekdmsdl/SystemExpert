@@ -13,10 +13,11 @@ static int num_threads;
 static void mat_mul_omp() {
   //FIXME: Optimize the following code using OpenMP
 
-  #pragma omp parallel for 	
+  #pragma omp parallel for num_threads(num_threads)
   for (int k = 0; k < K; ++k) {
     for (int i = 0; i < M; ++i) {
       for (int j = 0; j < N; ++j) {
+	      // printf("%d %d %d \n", k, i,j);
         C[i * N + j] += A[i * K + k] * B[k * N + j];
       }
     }
