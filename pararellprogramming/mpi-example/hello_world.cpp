@@ -18,7 +18,7 @@ int main() {
   MPI_Barrier(MPI_COMM_WORLD);
   
   if(rank == 0){
-    MPI_Send(hostname, hostnamelen + 1, MPI_CHAR, 1, 1234, MPI_COMM_WORLD);
+    MPI_Ssend(hostname, hostnamelen + 1, MPI_CHAR, 1, 1234, MPI_COMM_WORLD);
   }
   else {
     char recvBuf[MPI_MAX_PROCESSOR_NAME];
