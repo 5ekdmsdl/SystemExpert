@@ -1,3 +1,4 @@
 make clean
 make
-./run_performance.sh
+srun --nodes=1 --exclusive numactl --physcpubind 0-31 ./main -v -t 26 831 538 2304
+# ./run_performance.sh
