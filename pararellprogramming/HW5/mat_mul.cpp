@@ -23,6 +23,13 @@ static void mat_mul_omp() {
   int i = 0, j = 0, k = 0;
   if (M % iTile == 0 && N % jTile == 0 && K % kTile == 0) { 
 
+
+  if(mpi_rank == 0){
+
+
+  }
+  CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+
   if(mpi_rank == 0){
     printf("Rank 0 Start @@@@@@@@@@@@@@@@@@@@@ \n\n"); 
     #pragma omp parallel for num_threads(num_threads)
@@ -37,11 +44,15 @@ static void mat_mul_omp() {
                 for(int jj = j; jj < j + jTile; jj += 8){
                   __m256 b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
                   __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
-                  CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
-                  printf("Ready to MPI_Ssend bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
-                  CHECK_MPI(MPI_Ssend(&signal, 1, MPI_INT, 1, 0, MPI_COMM_WORLD));
-                  printf("send bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
-                  CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+                  printf("rank 0 %d done bbbbbbbbbbbbbbbbbbbbbbbbbbb \n", omp_get_thread_num());
+
+                  MPI_Send(&signal, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+                  MPI_Recv(&signal, 1, MPI_INT, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                  // printf("Ready to MPI_Ssend bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
+                  // CHECK_MPI(MPI_Ssend(&signal, 1, MPI_INT, 1, 0, MPI_COMM_WORLD));
+                  // printf("send bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
+                  // CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
               
                   c0 = _mm256_fmadd_ps(a0, b0, c0);
                   // _mm256_store_ps(&C[(ii+0)*N+jj], c0);
@@ -64,14 +75,20 @@ static void mat_mul_omp() {
               __m256 a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
 
               for(int jj = j; jj < j + jTile; jj += 8){
-                  CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
-                  printf("Ready to MPI_Recv bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
-                  CHECK_MPI(MPI_Recv(&signal, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
-                  printf("MPI_Recv bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
-                  CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+                  // CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+                  // printf("Ready to MPI_Recv bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
+                  // CHECK_MPI(MPI_Recv(&signal, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+                  // printf("MPI_Recv bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
+                  // CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
 
+                  MPI_Recv(&signal, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                  printf("rank 1 start bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
                 __m256 b1 = _mm256_load_ps(&B[(kk+1) * N + jj]);
                 __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
+                  printf("rank 1 done bbbbbbbbbbbbbbbbbbbbbbbbbbb \n");
+                
+                  // CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+                  MPI_Send(&signal, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
 
                 c0 = _mm256_fmadd_ps(a1, b1, c0);
                 printf("%d : %f \n", omp_get_thread_num(), c0);
@@ -81,18 +98,8 @@ static void mat_mul_omp() {
                   printf("Failed to allocate memory for matrix.\n");
                   exit(0);
                 }
-                
-
-                // printf("[ ");
-                // for (int i = 0; i < 8; i++) {
-                //     printf("%f ", sendBuf[i]);
-                // }
-                // printf("]\n");
-                
-                // _mm256_storeu_ps(sendBuf, c0);
-                // _mm256_store_ps(sendBuf, c0);
-                // MPI_Send(sendBuf, VECTORSIZE, MPI_FLOAT, 1, 0, MPI_COMM_WORLD);
-              }
+                free(sendBuf); // Deallocate memory after use
+                }
             }
           }
         }
