@@ -26,7 +26,6 @@ static void mat_mul_omp() {
                 __m256 a0 = _mm256_set1_ps(A[(ii+0)*K+(kk+0)]);
                 __m256 a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
               for(int jj = j; jj < j + jTile; jj += 8){
-                  C[ii * N + jj] += A[ii * K + kk] * B[kk * N + jj];
                   __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
 
                   __m256 b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
