@@ -114,8 +114,9 @@ int main(int argc, char **argv) {
       fflush(stdout);
       zero_mat(C, M, N);
     }
-
+    
     MPI_Barrier(MPI_COMM_WORLD);
+
     timer_start(0);
     mat_mul(A, B, C, M, N, K, num_threads, mpi_rank, mpi_world_size);
     MPI_Barrier(MPI_COMM_WORLD);

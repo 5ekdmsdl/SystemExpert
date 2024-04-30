@@ -15,50 +15,63 @@ static int M, N, K;
 static int num_threads;
 static int mpi_rank, mpi_world_size;
 
-static void mat_mul_omp() {
-  //FIXME: Optimize the following code using OpenMP
+void printf_sync(char* str){
+  printf("%s\n",str);
+}
 
-  int signal = 1;
+static void mat_mul_omp() {
   const int iTile = 64, jTile = 256, kTile = 256;
   int i = 0, j = 0, k = 0;
+  __m256 a0, a1, b0, b1, c0;
+
   if (M % iTile == 0 && N % jTile == 0 && K % kTile == 0) { 
+    printf("\n[LOG : rank %d] function start Barrier arrived \n", mpi_rank);
+    fflush(stdout);
+    CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD)); 
 
-
-  if(mpi_rank == 0){
-
-
-  }
-  // CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
-
-  if(mpi_rank == 0){
-    // printf("Rank 0 Start @@@@@@@@@@@@@@@@@@@@@ \n\n"); 
-    #pragma omp parallel for num_threads(num_threads)
+    #pragma omp parallel for num_threads(1)
     for (i = 0; i < M; i += iTile) {
       for (j = 0; j < N; j += jTile) {
         for (k = 0; k < K; k += kTile) {
-         
+        
           for(int kk = k; kk < k + kTile; kk+=2){
             for(int ii = i; ii < i + iTile; ii++){
-                __m256 a0 = _mm256_set1_ps(A[(ii+0)*K+(kk+0)]);
-                __m256 a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
+              printf("\n[LOG : rank %d] Loop Barrier arrived \n", mpi_rank);
+              fflush(stdout);
+              CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+
+              if(mpi_rank == 1){                
+                a0 = _mm256_set1_ps(A[(ii+0)*K+(kk+0)]);
+              }
+              else{
+                a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
+              }
               for(int jj = j; jj < j + jTile; jj += 8){
-                  __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
-
-                  __m256 b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
-                  __m256 b1 = _mm256_load_ps(&B[(kk+1) * N + jj]);
-              
+                if(mpi_rank == 1){
+                  c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);  
+                }
+                // MPI_Bcast(&c0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+                  
+                if(mpi_rank == 1){
+                  b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
                   c0 = _mm256_fmadd_ps(a0, b0, c0);
-                  c0 = _mm256_fmadd_ps(a1, b1, c0);
+                }
+                else{
+                  // b1 = _mm256_load_ps(&B[(kk+1) * N + jj]);
+                  // c0 = _mm256_fmadd_ps(a1, b1, c0);
+                }
 
+                if(mpi_rank == 1){
                   _mm256_store_ps(&C[(ii+0)*N+jj], c0);
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
               }
             }
           }
         }
       }
     }
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
   }
   else {
     #pragma omp parallel for num_threads(num_threads)
@@ -82,16 +95,42 @@ static void mat_mul_omp() {
 
 void mat_mul(float *_A, float *_B, float *_C, int _M, int _N, int _K,
              int _num_threads, int _mpi_rank, int _mpi_world_size) {
-  A = _A, B = _B, C = _C;
+  
+  MPI_Barrier(MPI_COMM_WORLD);
   M = _M, N = _N, K = _K;
   num_threads = _num_threads, mpi_rank = _mpi_rank,
-  mpi_world_size = _mpi_world_size;
+  mpi_world_size = _mpi_world_size;    
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if(mpi_rank == 0){
+    A = _A, B = _B, C = _C;    
+  }
+  else{   
+    A = (float*)malloc(M * N * sizeof(float));
+    B = (float*)malloc(N * K * sizeof(float));
+    C = (float*)malloc(M * K * sizeof(float));
+  }
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Bcast(A, N*M, MPI_FLOAT, 0, MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD); 
+  
+  if(mpi_rank == 1){
+    printf("A : %f 1111111111111111111111 \n ", A[0]);
+
+    // for(int i = 0; i < 10; i++){
+    //   printf("%f  ", A[i]);
+    // }
+    // printf("\n");
+  }
+  MPI_Barrier(MPI_COMM_WORLD); 
+
 
   // TODO: parallelize & optimize matrix multiplication on multi-node
   // You must allocate & initialize A, B, C for non-root processes
 
   // FIXME: for now, only root process runs the matrix multiplication.
   // if (mpi_rank == 0)
-  mat_mul_omp();
+  // mat_mul_omp();
 }
 
