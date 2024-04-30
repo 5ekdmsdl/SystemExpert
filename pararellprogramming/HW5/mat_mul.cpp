@@ -21,61 +21,97 @@ void printf_sync(char* str){
 
 static void mat_mul_omp() {
   const int iTile = 64, jTile = 256, kTile = 256;
-  int i = 0, j = 0, k = 0;
-  __m256 a0, a1, b0, b1, c0;
+  // int i = 0, j = 0, k = 0;
+  // __m256 a0, a1, b0, b1, c0;
 
   if (M % iTile == 0 && N % jTile == 0 && K % kTile == 0) { 
     printf("\n[LOG : rank %d] function start Barrier arrived \n", mpi_rank);
     fflush(stdout);
     CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD)); 
 
-    #pragma omp parallel for num_threads(1)
-    for (i = 0; i < M; i += iTile) {
-      for (j = 0; j < N; j += jTile) {
-        for (k = 0; k < K; k += kTile) {
-        
-          for(int kk = k; kk < k + kTile; kk+=2){
-            for(int ii = i; ii < i + iTile; ii++){
-              printf("\n[LOG : rank %d] Loop Barrier arrived \n", mpi_rank);
-              fflush(stdout);
-              CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD));
+    if(mpi_rank == 0){
+      #pragma omp parallel for num_threads(num_threads)
+      for (int i = 0; i < M / 2; i += iTile) {
+        for (int j = 0; j < N; j += jTile) {
+          for (int k = 0; k < K; k += kTile) {
+          
+            for(int kk = k; kk < k + kTile; kk+=2){
+              for(int ii = i; ii < i + iTile; ii++){
+                  __m256 a0 = _mm256_set1_ps(A[(ii+0)*K+(kk+0)]);
+                  __m256 a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
+                for(int jj = j; jj < j + jTile; jj += 8){
+                    __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
 
-              if(mpi_rank == 1){                
-                a0 = _mm256_set1_ps(A[(ii+0)*K+(kk+0)]);
-              }
-              else{
-                a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
-              }
-              for(int jj = j; jj < j + jTile; jj += 8){
-                if(mpi_rank == 1){
-                  c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);  
-                }
-                // MPI_Bcast(&c0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-                  
-                if(mpi_rank == 1){
-                  b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
-                  c0 = _mm256_fmadd_ps(a0, b0, c0);
-                }
-                else{
-                  // b1 = _mm256_load_ps(&B[(kk+1) * N + jj]);
-                  // c0 = _mm256_fmadd_ps(a1, b1, c0);
-                }
+                    __m256 b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
+                    __m256 b1 = _mm256_load_ps(&B[(kk+1) * N + jj]);
+                
+                    c0 = _mm256_fmadd_ps(a0, b0, c0);
+                    c0 = _mm256_fmadd_ps(a1, b1, c0);
 
-                if(mpi_rank == 1){
-                  _mm256_store_ps(&C[(ii+0)*N+jj], c0);
+                    _mm256_store_ps(&C[(ii+0)*N+jj], c0);
+                  }
                 }
-                MPI_Barrier(MPI_COMM_WORLD);
               }
             }
           }
         }
-      }
     }
+    else{
+      // fflush(stdout);
+      #pragma omp parallel for num_threads(num_threads)
+      for (int i = M / 2; i < M; i += iTile) {
+        for (int j = 0; j < N; j += jTile) {
+          for (int k = 0; k < K; k += kTile) {
+          
+            for(int kk = k; kk < k + kTile && kk < K; kk+=2){
+              for(int ii = i; ii < i + iTile && ii < M; ii++){
+                  __m256 a0 = _mm256_set1_ps(A[(ii+0)*K+(kk+0)]);
+                  __m256 a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
+
+                for(int jj = j; jj < j + jTile && jj < N; jj += 8){
+                    // printf("kij : %d %d %d \n ", kk, ii, jj);
+                    // printf("%f %f \n", C[(ii+0) * N + jj], B[(kk+1) * N + jj]);
+                    // C[(ii+0) * N + jj] = 1;
+                    // fflush(stdout);
+
+                    __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
+
+                    __m256 b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
+                    __m256 b1 = _mm256_load_ps(&B[(kk+1) * N + jj]);
+                
+                    c0 = _mm256_fmadd_ps(a0, b0, c0);
+                    c0 = _mm256_fmadd_ps(a1, b1, c0);
+
+                    _mm256_store_ps(&C[(ii+0) * N + jj], c0);                                     
+                  }
+                }
+              }
+            }
+          }
+        }
+    }
+    printf("rank %d ended its job. waiting ... \n", mpi_rank);
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if(mpi_rank == 1){
+      MPI_Ssend(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+    }
+    else{
+      float recvBuffer[M / 2 * N];
+      MPI_Recv(recvBuffer, M / 2 * N, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+      for (size_t i = 0; i < M / 2 * N; i++) {
+        printf("%f ", recvBuffer[i]);
+      }
+      printf("\n");      
+    }
+
+    printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   else {
     #pragma omp parallel for num_threads(num_threads)
-      for (int ii = 0; ii < M; ii += iTile) {
+      for (int ii = M / 2; ii < M; ii += iTile) {
         for (int kk = 0; kk < K; kk += kTile) {
           for (int jj = 0; jj < N; jj += jTile) {
             for (int i = ii; i < ii + iTile && i < M; ++i) {
@@ -106,31 +142,41 @@ void mat_mul(float *_A, float *_B, float *_C, int _M, int _N, int _K,
     A = _A, B = _B, C = _C;    
   }
   else{   
-    A = (float*)malloc(M * N * sizeof(float));
-    B = (float*)malloc(N * K * sizeof(float));
-    C = (float*)malloc(M * K * sizeof(float));
+    A = (float *)aligned_alloc(32, sizeof(float) * M * K);
+    B = (float *)aligned_alloc(32, sizeof(float) * K * N);
+    C = (float *)aligned_alloc(32, sizeof(float) * M * N);
+    // A = (float*)malloc(M * K * sizeof(float));
+    // B = (float*)malloc(K * N * sizeof(float));
+    // C = (float*)malloc(M * N * sizeof(float));
+    if (A == NULL || B == NULL || C == NULL) {
+      fprintf(stderr, "Memory allocation failed\n");
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
   }
   
   MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Bcast(A, N*M, MPI_FLOAT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(A, M * K, MPI_FLOAT, 0, MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD); 
+  MPI_Bcast(B, K * N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD); 
+  MPI_Bcast(C, M * N, MPI_FLOAT, 0, MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD); 
   
-  if(mpi_rank == 1){
-    printf("A : %f 1111111111111111111111 \n ", A[0]);
-
-    // for(int i = 0; i < 10; i++){
-    //   printf("%f  ", A[i]);
-    // }
-    // printf("\n");
-  }
-  MPI_Barrier(MPI_COMM_WORLD); 
-
+  // if(mpi_rank == 1){
+  //   for(int i = 0; i < 10; i++){
+  //     printf("%d %f %f %f  \n ", i, A[i], B[i], C[i]);
+  //     fflush(stdout);
+  //     MPI_Barrier(MPI_COMM_WORLD);
+  //   }
+  //   printf("\n");
+  // }
+  // MPI_Barrier(MPI_COMM_WORLD); 
 
   // TODO: parallelize & optimize matrix multiplication on multi-node
   // You must allocate & initialize A, B, C for non-root processes
 
   // FIXME: for now, only root process runs the matrix multiplication.
   // if (mpi_rank == 0)
-  // mat_mul_omp();
+  mat_mul_omp();
 }
 
