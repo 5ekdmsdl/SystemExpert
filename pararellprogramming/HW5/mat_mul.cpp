@@ -49,6 +49,12 @@ static void mat_mul_omp() {
                     c0 = _mm256_fmadd_ps(a1, b1, c0);
 
                     _mm256_store_ps(&C[(ii+0)*N+jj], c0);
+
+                    float recvBuffer[8];
+                    MPI_Recv(recvBuffer, 8, MPI_FLOAT, 1, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    for (size_t a = 0; a < count; a++) {
+                      C[(ii+M/2) * N + jj] = recvBuffer[a];
+                    }
                   }
                 }
               }
@@ -82,7 +88,8 @@ static void mat_mul_omp() {
                     c0 = _mm256_fmadd_ps(a0, b0, c0);
                     c0 = _mm256_fmadd_ps(a1, b1, c0);
 
-                    _mm256_store_ps(&C[(ii+0) * N + jj], c0);                                     
+                    _mm256_store_ps(&C[(ii+0) * N + jj], c0);
+                    MPI_Send(&C[(ii+0) * N + jj], 8, MPI_FLOAT, 0, i - (M/2), MPI_COMM_WORLD);                            
                   }
                 }
               }
@@ -93,20 +100,20 @@ static void mat_mul_omp() {
     printf("rank %d ended its job. waiting ... \n", mpi_rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if(mpi_rank == 1){
-      MPI_Ssend(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
-    }
-    else{
-      float recvBuffer[M / 2 * N];
-      MPI_Recv(recvBuffer, M / 2 * N, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    // if(mpi_rank == 1){
+    //   MPI_Ssend(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+    // }
+    // else{
+    //   float recvBuffer[M / 2 * N];
+    //   // MPI_Recv(recvBuffer, M / 2 * N, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-      for (size_t i = 0; i < M / 2 * N; i++) {
-        printf("%f ", recvBuffer[i]);
-      }
-      printf("\n");      
-    }
+    //   for (size_t i = 0; i < M / 2 * N; i++) {
+    //     printf("%f ", recvBuffer[i]);
+    //   }
+    //   printf("\n");      
+    // }
 
-    printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
+    // printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   else {
