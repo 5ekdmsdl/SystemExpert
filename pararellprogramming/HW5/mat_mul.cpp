@@ -21,9 +21,9 @@ static void mat_mul_omp() {
   const int iTile = 64, jTile = 256, kTile = 256;
 
   if (M % iTile == 0 && N % jTile == 0 && K % kTile == 0) { 
-    printf("\n[LOG : rank %d] function start Barrier arrived \n", mpi_rank);
-    fflush(stdout);
-    CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD)); 
+    // printf("\n[LOG : rank %d] function start Barrier arrived \n", mpi_rank);
+    // fflush(stdout);
+    // CHECK_MPI(MPI_Barrier(MPI_COMM_WORLD)); 
 
     if(mpi_rank == 0){
       #pragma omp parallel for num_threads(num_threads)
@@ -80,11 +80,11 @@ static void mat_mul_omp() {
           }
         }
     }
-    printf("rank %d ended its job. waiting ... \n", mpi_rank);
+    // printf("rank %d ended its job. waiting ... \n", mpi_rank);
     MPI_Barrier(MPI_COMM_WORLD);
-    if(mpi_rank == 0){
-      printf("Start copying ... \n");
-    }
+    // if(mpi_rank == 0){
+    //   printf("Start copying ... \n");
+    // }
 
     if(mpi_rank == 1){
       MPI_Ssend(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
@@ -93,8 +93,8 @@ static void mat_mul_omp() {
       MPI_Recv(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
-    
+    // printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
+
     MPI_Barrier(MPI_COMM_WORLD);
   }
   else {
@@ -133,9 +133,6 @@ void mat_mul(float *_A, float *_B, float *_C, int _M, int _N, int _K,
     A = (float *)aligned_alloc(32, sizeof(float) * M * K);
     B = (float *)aligned_alloc(32, sizeof(float) * K * N);
     C = (float *)aligned_alloc(32, sizeof(float) * M * N);
-    // A = (float*)malloc(M * K * sizeof(float));
-    // B = (float*)malloc(K * N * sizeof(float));
-    // C = (float*)malloc(M * N * sizeof(float));
     if (A == NULL || B == NULL || C == NULL) {
       fprintf(stderr, "Memory allocation failed\n");
       MPI_Abort(MPI_COMM_WORLD, 1);
