@@ -10,19 +10,15 @@
 #include "mpi_error_handler.h"
 
 #define VECTORSIZE 8
+#define chunkSize 128
+
 static float *A, *B, *C;
 static int M, N, K;
 static int num_threads;
 static int mpi_rank, mpi_world_size;
 
-void printf_sync(char* str){
-  printf("%s\n",str);
-}
-
 static void mat_mul_omp() {
   const int iTile = 64, jTile = 256, kTile = 256;
-  // int i = 0, j = 0, k = 0;
-  // __m256 a0, a1, b0, b1, c0;
 
   if (M % iTile == 0 && N % jTile == 0 && K % kTile == 0) { 
     printf("\n[LOG : rank %d] function start Barrier arrived \n", mpi_rank);
@@ -49,12 +45,6 @@ static void mat_mul_omp() {
                     c0 = _mm256_fmadd_ps(a1, b1, c0);
 
                     _mm256_store_ps(&C[(ii+0)*N+jj], c0);
-
-                    float recvBuffer[8];
-                    MPI_Recv(recvBuffer, 8, MPI_FLOAT, 1, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    for (size_t a = 0; a < count; a++) {
-                      C[(ii+M/2) * N + jj] = recvBuffer[a];
-                    }
                   }
                 }
               }
@@ -63,7 +53,6 @@ static void mat_mul_omp() {
         }
     }
     else{
-      // fflush(stdout);
       #pragma omp parallel for num_threads(num_threads)
       for (int i = M / 2; i < M; i += iTile) {
         for (int j = 0; j < N; j += jTile) {
@@ -75,11 +64,6 @@ static void mat_mul_omp() {
                   __m256 a1 = _mm256_set1_ps(A[(ii+0)*K+(kk+1)]);
 
                 for(int jj = j; jj < j + jTile && jj < N; jj += 8){
-                    // printf("kij : %d %d %d \n ", kk, ii, jj);
-                    // printf("%f %f \n", C[(ii+0) * N + jj], B[(kk+1) * N + jj]);
-                    // C[(ii+0) * N + jj] = 1;
-                    // fflush(stdout);
-
                     __m256 c0 = _mm256_load_ps(&C[(ii+0) * N + jj]);
 
                     __m256 b0 = _mm256_load_ps(&B[(kk+0) * N + jj]);
@@ -89,7 +73,6 @@ static void mat_mul_omp() {
                     c0 = _mm256_fmadd_ps(a1, b1, c0);
 
                     _mm256_store_ps(&C[(ii+0) * N + jj], c0);
-                    MPI_Send(&C[(ii+0) * N + jj], 8, MPI_FLOAT, 0, i - (M/2), MPI_COMM_WORLD);                            
                   }
                 }
               }
@@ -99,19 +82,21 @@ static void mat_mul_omp() {
     }
     printf("rank %d ended its job. waiting ... \n", mpi_rank);
     MPI_Barrier(MPI_COMM_WORLD);
+    if(mpi_rank == 0){
+      printf("Start copying ... \n");
+    }
 
-    // if(mpi_rank == 1){
-    //   MPI_Ssend(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
-    // }
-    // else{
-    //   float recvBuffer[M / 2 * N];
-    //   // MPI_Recv(recvBuffer, M / 2 * N, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    for(int i = M / 2 * N; i < M * N; i += chunkSize){
+      if(mpi_rank == 1){
+        MPI_Ssend(&C[i], chunkSize, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+      }
+      else{
+        // float recvBuffer[32];
+        MPI_Recv(&C[i], chunkSize, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
 
-    //   for (size_t i = 0; i < M / 2 * N; i++) {
-    //     printf("%f ", recvBuffer[i]);
-    //   }
-    //   printf("\n");      
-    // }
 
     // printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
     MPI_Barrier(MPI_COMM_WORLD);
