@@ -10,7 +10,7 @@
 #include "mpi_error_handler.h"
 
 #define VECTORSIZE 8
-#define chunkSize 128
+#define chunkSize 4096
 
 static float *A, *B, *C;
 static int M, N, K;
@@ -86,19 +86,15 @@ static void mat_mul_omp() {
       printf("Start copying ... \n");
     }
 
-    for(int i = M / 2 * N; i < M * N; i += chunkSize){
-      if(mpi_rank == 1){
-        MPI_Ssend(&C[i], chunkSize, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
-      }
-      else{
-        // float recvBuffer[32];
-        MPI_Recv(&C[i], chunkSize, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
+    if(mpi_rank == 1){
+      MPI_Ssend(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
     }
-
-
-    // printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
+    else{
+      MPI_Recv(&C[M / 2 * N], M / 2 * N, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("rank %d ended send/recv job. waiting ... \n", mpi_rank);
+    
     MPI_Barrier(MPI_COMM_WORLD);
   }
   else {
