@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
   rand_mat(A, M, K);
   rand_mat(B, K, N);
   mat_mul_init(A, B, C, M, N, K);
-  printf("done!\n");
+  printf("done!\n"); fflush(stdout);
 
   double elapsed_time_sum = 0;
   for (int i = 0; i < num_iterations; ++i) {
