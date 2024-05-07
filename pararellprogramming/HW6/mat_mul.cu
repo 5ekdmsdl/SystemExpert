@@ -21,13 +21,13 @@
 __global__ void sgemm(float *A, float *B, float *C, int M, int N, int K) {
   int i = blockDim.x * blockIdx.x + threadIdx.x;
   int j = blockDim.y * blockIdx.y + threadIdx.y;
-  if (i >= M || j >= N) return;
+  // if (i >= M || j >= N) return;
 
-  C[i * N + j] = 0;
-  for(int k = 0; k < K; k += 2){
-    C[i * N + j] += A[i * K + k] * B[k * N + j];
-    C[i * N + j] += A[i * K + (k + 1)] * B[(k + 1) * N + j];    
+  float sum = 0;
+  for(int k = 0; k < K; k++){
+    sum += A[i * K + k] * B[k * N + j];  
   }
+  C[i * N + j] = sum;
 }
 
 // Device (GPU) pointers
@@ -54,9 +54,9 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
   //   printf("\t\tsharedMemPerBlock: %lu\n", props[i].sharedMemPerBlock);
   // }
 
-  int targetBlkSz = 4;
   int blkSz = 2; int blkCnt = M * N / (blkSz * blkSz);
 
+  int targetBlkSz = 8;
   if(M % targetBlkSz == 0 && N % targetBlkSz == 0 && K % targetBlkSz == 0){
     printf("optimized multiplication start ... \n"); fflush(stdout);
     blkSz = targetBlkSz;
@@ -71,10 +71,10 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
   }
 
   printf("block size is %d * %d = %d \n", blkSz, blkSz, blkSz * blkSz); fflush(stdout);
-  printf("the number of block is %d \n", blkCnt); fflush(stdout);
+  printf("grid size is %d * %d \n", M / blkSz, N / blkSz); fflush(stdout);
 
   dim3 blockDim(blkSz, blkSz, 1);
-  dim3 gridDim(M, N, 1);
+  dim3 gridDim(M / blkSz, N / blkSz, 1);
 
   printf("Start sgemm \n"); fflush(stdout);
   printf("M, N, K %d %d %d \n", M, N, K);
