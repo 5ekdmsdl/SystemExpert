@@ -52,7 +52,7 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
     printf("\t\tsharedMemPerBlock: %lu\n", props[i].sharedMemPerBlock);
   }
 
-  int targetBlkSz = 64;
+  int targetBlkSz = 128;
   int blkSz = 1;
   if(M % targetBlkSz == 0 && N % targetBlkSz == 0 && K % targetBlkSz == 0){
     printf("optimized multiplication start ... \n"); fflush(stdout);
@@ -60,7 +60,7 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
     int blkCnt = M * N / (blkSz * blkSz);  // = 8192 * 8192 / (64 * 64) = (128 * 128)
     printf("block size is %d \n", blkSz * blkSz); fflush(stdout);
     printf("the number of block is %d \n", blkCnt); fflush(stdout);
-  
+
     if(blkCnt < props[0].multiProcessorCount){
       printf("block count error !! \n"); fflush(stdout);
     }
@@ -68,19 +68,19 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
       printf("block size error !! \n"); fflush(stdout);
     }
   }
-
-  blkSz = 128 * 128;
+  
   dim3 blockDim(blkSz, 1, 1);
   dim3 gridDim(M, N, 1);
 
   printf("Start sgemm \n"); fflush(stdout);
+  printf("M, N, K %d %d %d \n", M, N, K);
   sgemm<<<gridDim, blockDim>>>(a_d, b_d, c_d, M, N, K);
   printf("Done sgemm \n"); fflush(stdout);
 
   // DO NOT REMOVE; NEEDED FOR TIME MEASURE
-  printf("Sync Start ... \n"); fflush(stdout);
-  CUDA_CALL(cudaDeviceSynchronize());
-  printf("Sync Done \n"); fflush(stdout);
+  // printf("Sync Start ... \n"); fflush(stdout);
+  // CUDA_CALL(cudaDeviceSynchronize());
+  // printf("Sync Done \n"); fflush(stdout);
 }
 
 void mat_mul_init(float *A, float *B, float *C, int M, int N, int K) {

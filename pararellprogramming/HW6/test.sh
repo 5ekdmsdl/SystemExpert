@@ -1,3 +1,3 @@
 make clean
 make
-./run_validate.sh
+./run_val.sh
