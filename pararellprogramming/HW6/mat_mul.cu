@@ -54,7 +54,7 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
   //   printf("\t\tsharedMemPerBlock: %lu\n", props[i].sharedMemPerBlock);
   // }
 
-  int targetBlkSz = 8;
+  int targetBlkSz = 4;
   int blkSz = 2; int blkCnt = M * N / (blkSz * blkSz);
 
   if(M % targetBlkSz == 0 && N % targetBlkSz == 0 && K % targetBlkSz == 0){
