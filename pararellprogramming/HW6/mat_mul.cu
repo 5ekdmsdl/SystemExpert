@@ -4,6 +4,8 @@
 #include <iostream>
 
 #include "mat_mul.h"
+#define SMCNT  46
+#define WRAPSZ 32
 
 #define CUDA_CALL(f)                                                       \
   {                                                                        \
@@ -21,10 +23,10 @@ __global__ void sgemm(float *A, float *B, float *C, int M, int N, int K) {
   int j = blockDim.y * blockIdx.y + threadIdx.y;
   if (i >= M || j >= N) return;
 
-  // int kTile = 128;
   C[i * N + j] = 0;
-  for(int k = 0; k < K; k++){
+  for(int k = 0; k < K; k += 2){
     C[i * N + j] += A[i * K + k] * B[k * N + j];
+    C[i * N + j] += A[i * K + (k + 1)] * B[(k + 1) * N + j];    
   }
 }
 
@@ -36,40 +38,42 @@ static float *c_d;
 void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
   // Launch kernel on every GPU
   printf("Start mat mul ... \n");
-  int count;
-  cudaGetDeviceCount(&count);
-  printf("Number of devices: %d\n", count);
+  // int count;
+  // cudaGetDeviceCount(&count);
+  // printf("Number of devices: %d\n", count);
 
-  printf("Getting dev info ... \n");
-  cudaDeviceProp props[10];
-  for (int i = 0; i < count; ++i) {
-    printf("\tdevice %d:\n", i);
-    cudaGetDeviceProperties(&props[i], i);
-    printf("\t\tname: %s\n", props[i].name);
-    printf("\t\tmultiProcessorCount: %d\n", props[i].multiProcessorCount);
-    printf("\t\tmaxThreadsPerBlock: %d\n", props[i].maxThreadsPerBlock);
-    printf("\t\ttotalGlobalMem: %lu\n", props[i].totalGlobalMem);
-    printf("\t\tsharedMemPerBlock: %lu\n", props[i].sharedMemPerBlock);
-  }
+  // printf("Getting dev info ... \n");
+  // cudaDeviceProp props[10];
+  // for (int i = 0; i < count; ++i) {
+  //   printf("\tdevice %d:\n", i);
+  //   cudaGetDeviceProperties(&props[i], i);
+  //   printf("\t\tname: %s\n", props[i].name);
+  //   printf("\t\tmultiProcessorCount: %d\n", props[i].multiProcessorCount);
+  //   printf("\t\tmaxThreadsPerBlock: %d\n", props[i].maxThreadsPerBlock);
+  //   printf("\t\ttotalGlobalMem: %lu\n", props[i].totalGlobalMem);
+  //   printf("\t\tsharedMemPerBlock: %lu\n", props[i].sharedMemPerBlock);
+  // }
 
-  int targetBlkSz = 128;
-  int blkSz = 1;
+  int targetBlkSz = 8;
+  int blkSz = 2; int blkCnt = M * N / (blkSz * blkSz);
+
   if(M % targetBlkSz == 0 && N % targetBlkSz == 0 && K % targetBlkSz == 0){
     printf("optimized multiplication start ... \n"); fflush(stdout);
     blkSz = targetBlkSz;
-    int blkCnt = M * N / (blkSz * blkSz);  // = 8192 * 8192 / (64 * 64) = (128 * 128)
-    printf("block size is %d \n", blkSz * blkSz); fflush(stdout);
-    printf("the number of block is %d \n", blkCnt); fflush(stdout);
+    blkCnt = M * N / (blkSz * blkSz);  // = 8192 * 8192 / (64 * 64) = (128 * 128)
 
-    if(blkCnt < props[0].multiProcessorCount){
+    if(blkCnt < SMCNT){
       printf("block count error !! \n"); fflush(stdout);
     }
-    if(blkSz % 32 != 0){
+    if((blkSz * blkSz) % WRAPSZ != 0){
       printf("block size error !! \n"); fflush(stdout);
     }
   }
-  
-  dim3 blockDim(blkSz, 1, 1);
+
+  printf("block size is %d * %d = %d \n", blkSz, blkSz, blkSz * blkSz); fflush(stdout);
+  printf("the number of block is %d \n", blkCnt); fflush(stdout);
+
+  dim3 blockDim(blkSz, blkSz, 1);
   dim3 gridDim(M, N, 1);
 
   printf("Start sgemm \n"); fflush(stdout);
@@ -78,9 +82,9 @@ void mat_mul(float *_A, float *_B, float *_C, int M, int N, int K) {
   printf("Done sgemm \n"); fflush(stdout);
 
   // DO NOT REMOVE; NEEDED FOR TIME MEASURE
-  // printf("Sync Start ... \n"); fflush(stdout);
-  // CUDA_CALL(cudaDeviceSynchronize());
-  // printf("Sync Done \n"); fflush(stdout);
+  printf("Sync Start ... \n"); fflush(stdout);
+  CUDA_CALL(cudaDeviceSynchronize());
+  printf("Sync Done \n"); fflush(stdout);
 }
 
 void mat_mul_init(float *A, float *B, float *C, int M, int N, int K) {
