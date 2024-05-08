@@ -105,6 +105,15 @@ int main(int argc, char **argv) {
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
+  // if(mpi_rank == 0){
+  //   for (int i = 0; i < 10; i++) {
+  //     for (int j = 0; j < 10; j++) {
+  //       printf("%f ", A[i * K + j]);
+  //     }
+  //     printf("\n");
+  //   }
+  // }
+
   matmul_initialize(M, N, K);
   MPI_Barrier(MPI_COMM_WORLD);
 

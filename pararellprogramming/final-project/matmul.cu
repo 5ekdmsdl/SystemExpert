@@ -3,6 +3,9 @@
 
 #include <cuda_runtime.h>
 #include <mpi.h>
+#define SMCNT  46
+#define WRAPSZ 32
+#define ROOTRANK 0
 
 #define CUDA_CALL(f)                                                           \
   {                                                                            \
@@ -14,14 +17,21 @@
     }                                                                          \
   }
 
-#define MAX_NUM_GPU 4
+#define MAX_NUM_GPU 1
 int num_devices = 0;
 
 __global__ void matmul_kernel(float *A, float *B, float *C, int M, int N,
                               int K) {
-  // FILL IN HERE
-}
+  int i = blockDim.x * blockIdx.x + threadIdx.x;
+  int j = blockDim.y * blockIdx.y + threadIdx.y;
+  if (i >= M || j >= N) return;
 
+  float sum = 0;
+  for(int k = 0; k < K; k++){
+    sum += A[i * K + k] * B[k * N + j];  
+  }
+  C[i * N + j] = sum;
+}
 
 // Array of device (GPU) pointers
 static float *a_d[MAX_NUM_GPU];
@@ -35,15 +45,51 @@ void matmul(float *A, float *B, float *C, int M, int N, int K) {
   int mpi_rank, mpi_world_size;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
-  
-  if(mpi_rank == 0){
-    for (int i = 0; i < devCnt; i++) {
+
+  int blkSz = 2; int blkCnt = M * N / (blkSz * blkSz);
+  if(mpi_rank == ROOTRANK){
+    for (int i = 0; i < num_devices; i++) {
+      printf("Memcopying ... dev %d \n", i);
       cudaSetDevice(i);
-      cudaMemcpy(a_d[i], A, sizeof(float) * M * K, cudaMemcpyHostToDevice);
-      cudaMemcpy(b_d[i], B, sizeof(float) * K * N, cudaMemcpyHostToDevice);
-      printf("dev %d copy done ! \n ", i); 
+      CUDA_CALL(cudaMemcpy(a_d[i], A, M * K * sizeof(float), cudaMemcpyHostToDevice));
+      CUDA_CALL(cudaMemcpy(b_d[i], B, K * N * sizeof(float), cudaMemcpyHostToDevice));
+    
+      printf("Memcopying Done ! dev %d \n", i);
     }
+    
+    int targetBlkSz = 8;
+    if(M % targetBlkSz == 0 && N % targetBlkSz == 0 && K % targetBlkSz == 0){
+      printf("optimized multiplication start ... \n"); fflush(stdout);
+      blkSz = targetBlkSz;
+      blkCnt = M * N / (blkSz * blkSz);  // = 8192 * 8192 / (64 * 64) = (128 * 128)
+
+      if(blkCnt < SMCNT){
+        printf("block count error !! \n"); fflush(stdout);
+      }
+      if((blkSz * blkSz) % WRAPSZ != 0){
+        printf("block size error !! \n"); fflush(stdout);
+      }  
+    }      
+    
+    printf("block size is %d * %d = %d \n", blkSz, blkSz, blkSz * blkSz); fflush(stdout);
+    printf("grid size is %d * %d \n", M / blkSz, N / blkSz); fflush(stdout);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
+  
+  if(mpi_rank == ROOTRANK){
+    for (int devNum = 0; devNum < num_devices; devNum++) {
+      printf("Device num : %d ... \n", devNum);
+      cudaSetDevice(devNum);
+
+      dim3 blockDim(blkSz, blkSz, 1);
+      dim3 gridDim(M / blkSz, N / blkSz, 1);
+
+      printf("Start matmul_kernel \n"); fflush(stdout);
+      matmul_kernel<<<gridDim, blockDim>>>(A, B, C, M, N, K);
+      printf("Done matmul_kernel \n"); fflush(stdout);
+    }    
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void matmul_initialize(int M, int N, int K) {
@@ -72,6 +118,9 @@ void matmul_finalize() {
   int mpi_rank, mpi_world_size;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
-  
-  // FILL IN HERE
+
+  if(mpi_rank == ROOTRANK){
+    printf("mat mul final ... \n");  fflush(stdout);
+    printf("mat mul final done ! \n");     fflush(stdout);
+  }
 }
