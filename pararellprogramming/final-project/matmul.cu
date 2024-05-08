@@ -29,12 +29,21 @@ static float *b_d[MAX_NUM_GPU];
 static float *c_d[MAX_NUM_GPU];
 static int Mbegin[MAX_NUM_GPU], Mend[MAX_NUM_GPU];
 
+int devCnt = 0;
+
 void matmul(float *A, float *B, float *C, int M, int N, int K) {
   int mpi_rank, mpi_world_size;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
   
-  // FILL IN HERE
+  if(mpi_rank == 0){
+    for (int i = 0; i < devCnt; i++) {
+      cudaSetDevice(i);
+      cudaMemcpy(a_d[i], A, sizeof(float) * M * K, cudaMemcpyHostToDevice);
+      cudaMemcpy(b_d[i], B, sizeof(float) * K * N, cudaMemcpyHostToDevice);
+      printf("dev %d copy done ! \n ", i); 
+    }
+  }
 }
 
 void matmul_initialize(int M, int N, int K) {
@@ -42,7 +51,21 @@ void matmul_initialize(int M, int N, int K) {
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
 
-  // FILL IN HERE
+  if(mpi_rank == 0){
+    cudaGetDeviceCount(&devCnt);
+
+    for (int i = 0; i < devCnt; i++) {
+      cudaSetDevice(i);
+      // cudaStreamCreate(&stream[i]);
+      // cudaEventCreate(&events[i]);
+
+      cudaMalloc(&a_d[i], sizeof(float) * M * K);
+      cudaMalloc(&b_d[i], sizeof(float) * K * N);
+      cudaMalloc(&c_d[i], sizeof(float) * M * N);
+
+      printf("dev %d malloc Done ! \n", i);
+    }
+  }
 }
 
 void matmul_finalize() {

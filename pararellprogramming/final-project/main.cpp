@@ -110,9 +110,9 @@ int main(int argc, char **argv) {
 
   // Few warmup iterations
   zero_mat(C, M, N);
-  for (int i = 0; i < 3; i++) {
-    matmul(A, B, C, M, N, K);
-  }
+  // for (int i = 0; i < 3; i++) {
+  //   matmul(A, B, C, M, N, K);
+  // }
   MPI_Barrier(MPI_COMM_WORLD);
 
   double elapsed_time_sum = 0;
