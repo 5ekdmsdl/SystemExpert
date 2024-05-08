@@ -3,6 +3,8 @@
 
 #include <cuda_runtime.h>
 #include <mpi.h>
+#define SMCNT  46
+#define WRAPSZ 32
 
 #define CUDA_CALL(f)                                                           \
   {                                                                            \
@@ -68,7 +70,7 @@ void matmul(float *A, float *B, float *C, int M, int N, int K) {
 
   printf("Start sgemm \n"); fflush(stdout);
   printf("M, N, K %d %d %d \n", M, N, K);
-  matmul_kernel<<<gridDim, blockDim>>>(a_d, b_d, c_d, M, N, K);
+  matmul_kernel<<<gridDim, blockDim>>>(a_d[0], b_d[0], c_d[0], M, N, K);
   printf("Done sgemm \n"); fflush(stdout);
 
   // DO NOT REMOVE; NEEDED FOR TIME MEASURE
@@ -83,16 +85,12 @@ void matmul_initialize(int M, int N, int K) {
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
 
   printf("mat mul init ... \n");    
-  CUDA_CALL(cudaMalloc(&a_d, M * K * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&b_d, K * N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&c_d, M * N * sizeof(float)));
-
   // Upload A and B matrix to GPU
-  CUDA_CALL(cudaMemcpy(a_d, A, M * K * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(b_d, B, K * N * sizeof(float), cudaMemcpyHostToDevice));
+  // CUDA_CALL(cudaMemcpy(a_d[0], A, M * K * sizeof(float), cudaMemcpyHostToDevice));
+  // CUDA_CALL(cudaMemcpy(b_d[0], B, K * N * sizeof(float), cudaMemcpyHostToDevice));
 
-  // DO NOT REMOVE; NEEDED FOR TIME MEASURE
-  CUDA_CALL(cudaDeviceSynchronize());
+  // // DO NOT REMOVE; NEEDED FOR TIME MEASURE
+  // CUDA_CALL(cudaDeviceSynchronize());
   printf("mat mul init done ! \n");   fflush(stdout);  
 }
 
@@ -103,9 +101,9 @@ void matmul_finalize() {
   
   printf("mat mul final ... \n");  fflush(stdout);
   // Download C matrix from GPU
-  CUDA_CALL(cudaMemcpy(C, c_d, M * N * sizeof(float), cudaMemcpyDeviceToHost));
+  // CUDA_CALL(cudaMemcpy(C, c_d[0], M * N * sizeof(float), cudaMemcpyDeviceToHost));
 
   // DO NOT REMOVE; NEEDED FOR TIME MEASURE
-  CUDA_CALL(cudaDeviceSynchronize());
+  // CUDA_CALL(cudaDeviceSynchronize());
   printf("mat mul final done ! \n");     fflush(stdout);
 }
